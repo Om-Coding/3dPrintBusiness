@@ -10,9 +10,9 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files (HTML) from 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Add a default route to serve index.html explicitly
+// Add a default route to serve home.html explicitly
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'home.html'));
 });
 
 // MySQL connection (Freesqldatabase.com)
@@ -66,5 +66,5 @@ app.post('/submit', (req, res) => {
 // Start server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}/`);
-  console.log('Looking for index.html at:', path.join(__dirname, 'public', 'index.html'));
+  console.log('Looking for home.html at:', path.join(__dirname, 'public', 'home.html'));
 });
