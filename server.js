@@ -10,9 +10,9 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files (HTML) from 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Add a default route to serve home.html explicitly
+// Add a default route to serve order.html explicitly
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'home.html'));
+  res.sendFile(path.join(__dirname, 'public', 'order.html'));
 });
 
 // MySQL connection (Freesqldatabase.com)
@@ -47,13 +47,13 @@ app.post('/submit', (req, res) => {
   const { full_name, email, phone, address, printer_model, quantity } = req.body;
   const price = getPrice(printer_model) * parseInt(quantity);
   const values = [full_name, email, phone, address, printer_model, quantity, price];
-
+  
   const sql = `
     INSERT INTO PrinterOrders 
     (full_name, email, phone, address, printer_model, quantity, price)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
-
+  
   connection.query(sql, values, (err, result) => {
     if (err) {
       console.error('Insert error:', err);
@@ -66,5 +66,5 @@ app.post('/submit', (req, res) => {
 // Start server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}/`);
-  console.log('Looking for home.html at:', path.join(__dirname, 'public', 'home.html'));
+  console.log('Looking for order.html at:', path.join(__dirname, 'public', 'order.html'));
 });
