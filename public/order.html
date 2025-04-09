@@ -10,19 +10,29 @@
       background-color: #212529;
       color: #fff;
     }
+    
+    /* Updated navbar styles to match fidget.html exactly */
     .navbar {
-      background-color: #343a40;
+      background: linear-gradient(135deg, #d15b00, #a63900); /* Muted orange gradient */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
+
     .navbar-brand img {
-      width: 40px;
-      height: 30px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid #fff;
     }
+
     .navbar-nav .nav-link {
-      color: #ffffff !important;
+      color: #fff !important;
+      transition: color 0.3s ease;
     }
+
     .navbar-nav .nav-link:hover {
-      color: #f8f9fa !important;
+      color: #ffd700 !important;
     }
+    
     h1 {
       color: #f8f9fa;
       margin-top: 50px;
@@ -64,10 +74,11 @@
 </head>
 <body>
 
-  <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #343a40;">
+  <!-- Updated Navbar to match fidget.html exactly -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid">
       <a class="navbar-brand" href="#">
-        <img src="images/Logo.png" alt="Logo" class="d-inline-block align-text-top">
+        <img src="images/Logo.png" alt="Logo" width="50" height="50" class="d-inline-block align-text-top">
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -75,7 +86,7 @@
       <div class="collapse navbar-collapse" id="navbarNavDropdown">
         <ul class="navbar-nav">
           <li class="nav-item">
-            <a class="nav-link active" aria-current="page" href="order.html">Order</a>
+            <a class="nav-link active" href="order.html">Order</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="fidget.html">Fidgets</a>
