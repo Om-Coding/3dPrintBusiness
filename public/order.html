@@ -101,33 +101,23 @@
       </div>
     </div>
   </nav>
+  <div class="container mt-5">
+    <h1 class="text-center">Place Your Printer Order</h1>
+    <form id="orderForm" class="mt-4">
+      <label>Full Name:</label>
+      <input type="text" name="full_name" class="form-control" required />
 
-  <h1 class="text-center">Place Your Printer Order</h1>
+      <label>Email:</label>
+      <input type="email" name="email" class="form-control" required />
 
-  <form action="/submit" method="POST">
-    <div class="form-group">
-      <label for="full_name">Full Name:</label>
-      <input type="text" id="full_name" name="full_name" required>
-    </div>
+      <label>Phone:</label>
+      <input type="text" name="phone" class="form-control" required />
 
-    <div class="form-group">
-      <label for="email">Email:</label>
-      <input type="email" id="email" name="email" required>
-    </div>
+      <label>Address:</label>
+      <textarea name="address" class="form-control" required></textarea>
 
-    <div class="form-group">
-      <label for="phone">Phone:</label>
-      <input type="text" id="phone" name="phone" required>
-    </div>
-
-    <div class="form-group">
-      <label for="address">Address:</label>
-      <textarea id="address" name="address" required></textarea>
-    </div>
-
-    <div class="form-group">
-      <label for="printer_model">Printer Model:</label>
-      <select id="printer_model" name="printer_model" required>
+      <label>Printer Model:</label>
+      <select name="printer_model" class="form-control" required>
         <option>Hexagon Fidget</option>
         <option>Cone Fidget</option>
         <option>Fidget Ring</option>
@@ -144,16 +134,44 @@
         <option>Big Container</option>
         <option>Among Us</option>
       </select>
-    </div>
 
-    <div class="form-group">
-      <label for="quantity">Quantity:</label>
-      <input type="number" id="quantity" name="quantity" required>
-    </div>
+      <label>Quantity:</label>
+      <input type="number" name="quantity" class="form-control" required />
 
-    <button type="submit">Submit Order</button>
-  </form>
+      <button type="submit" class="btn btn-warning mt-3">Pay with Stripe</button>
+    </form>
+  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://js.stripe.com/v3/"></script>
+  <script>
+    const stripe = Stripe('pk_test_51RBMbMIGrxJSEZdQcR7JKewdSJMP8HywSJBfS7A5SHnK2u8cSBtyhX8Z7odkuZR7ozOrsIU3vMmtZdosz1LUmD2800eXDEc0Va'); // Replace this
+
+    document.getElementById("orderForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const form = e.target;
+
+      const formData = {
+        full_name: form.full_name.value,
+        email: form.email.value,
+        phone: form.phone.value,
+        address: form.address.value,
+        printer_model: form.printer_model.value,
+        quantity: parseInt(form.quantity.value)
+      };
+
+      const res = await fetch('/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await res.json();
+      if (data.id) {
+        stripe.redirectToCheckout({ sessionId: data.id });
+      } else {
+        alert('Failed to create Stripe session.');
+      }
+    });
+  </script>
 </body>
 </html>
