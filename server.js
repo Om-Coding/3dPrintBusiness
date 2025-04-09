@@ -47,13 +47,13 @@ app.post('/submit', (req, res) => {
   const { full_name, email, phone, address, printer_model, quantity } = req.body;
   const price = getPrice(printer_model) * parseInt(quantity);
   const values = [full_name, email, phone, address, printer_model, quantity, price];
-  
+
   const sql = `
     INSERT INTO PrinterOrders 
     (full_name, email, phone, address, printer_model, quantity, price)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
-  
+
   connection.query(sql, values, (err, result) => {
     if (err) {
       console.error('Insert error:', err);
