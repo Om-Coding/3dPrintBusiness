@@ -1,92 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <title>Print da Toys</title>
+    <link rel="icon" href="images/logo.pvg" type="image/x-icon">
+    <title>Novalayer</title>
     <style>
-        body {
-            background-color: #121212;
-        }
-
+        /* Navbar styling */
         .navbar {
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, #d15b00, #a63900); /* More muted, less bright */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
 
+        .navbar-brand img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+        }
+
+        .navbar-nav .nav-link {
+            color: #fff !important;
+            transition: color 0.3s ease;
+        }
+
+        .navbar-nav .nav-link:hover {
+            color: #ffd700 !important;
+        }
+
+        /* Button styling */
+        .btn {
+            background-color: #d15b00; /* Muted orange color */
+            transition: background-color 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: #a63900; /* Darker shade of muted orange */
+        }
+
+        /* Card hover effect */
         .card {
-            margin: 15px 0;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-img-top {
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .container {
+            margin-top: 50px;
+        }
+
+        /* Custom styling for body */
+        .card-body {
+            background-color: #2C2C2C;
         }
 
         .card-title {
             color: #FFD700;
         }
 
-        .card-body {
-            background-color: #2C2C2C;
-        }
-
         .card-text {
             color: #D3D3D3;
         }
 
-        .btn-primary {
-            background-color: #FF6347;
-            border-color: #FF6347;
-        }
-
-        .btn-primary:hover {
-            background-color: #FF4500;
-            border-color: #FF4500;
-        }
-
-        .container {
-            margin-top: 30px;
-        }
-
-        h2 {
-            margin-bottom: 30px;
+        h1 {
             color: #FFD700;
+            margin-bottom: 30px;
         }
     </style>
 </head>
-
-<body class="bg-dark text-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-secondary">
+<body class="bg-dark">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">
-                <img src="https://wallpapercave.com/wp/wp3347873.png" alt="Logo" width="30" height="24" class="d-inline-block align-text-top">
+                <img src="images/Logo.png" alt="Logo" class="d-inline-block align-text-top">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNavDropdown">
                 <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="home.html">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="fidget.html">Fidgets</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="utility.html">Utility</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="other.html">Other</a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link active" aria-current="page" href="home.html">Home</a></li>
+                    <li class="nav-item"><a class="nav-link active" aria-current="page" href="order.html">Order</a></li>
+                    <li class="nav-item"><a class="nav-link" href="fidget.html">Fidgets</a></li>
+                    <li class="nav-item"><a class="nav-link" href="utility.html">Utility</a></li>
+                    <li class="nav-item"><a class="nav-link" href="other.html">Other</a></li>
                 </ul>
             </div>
         </div>
     </nav>
 
     <div class="container text-center mt-4">
-        <h2>Explore Our Collection</h2>
+        <h2 class="mb-4">Explore Our Collection</h2>
         <div class="row">
             <!-- Dragon -->
             <div class="col-md-4">
                 <div class="card" style="width: 18rem;">
-                    <img src="your-image-url-here" class="card-img-top" alt="Dragon">
+                    <img src="https://makerworld.bblmw.com/makerworld/model/US80bb5c662315de/design/2024-08-11_e88671b76bdf8.jpg?x-oss-process=image/resize,w_1000/format,webp" class="card-img-top" alt="Dragon">
                     <div class="card-body">
                         <h5 class="card-title">Dragon</h5>
                         <p class="card-text">A mythical dragon toy that spins and has sharp scales.<br>Price: $4</p>
@@ -99,7 +117,7 @@
             <!-- Sword -->
             <div class="col-md-4">
                 <div class="card" style="width: 18rem;">
-                    <img src="your-image-url-here" class="card-img-top" alt="Sword">
+                    <img src="https://media.printables.com/media/prints/535233/images/4321067_b7ded5b2-1268-4c30-bd8b-e99d5807fa9b/thumbs/cover/1200x630/png/drill-sword-removable-copy.png" class="card-img-top" alt="Sword">
                     <div class="card-body">
                         <h5 class="card-title">Sword</h5>
                         <p class="card-text">A miniature sword for collectors or play.<br>Price: $9</p>
@@ -112,10 +130,10 @@
             <!-- Octopus -->
             <div class="col-md-4">
                 <div class="card" style="width: 18rem;">
-                    <img src="your-image-url-here" class="card-img-top" alt="Octopus">
+                    <img src="https://i.etsystatic.com/29611650/r/il/05aa77/3153062510/il_1140xN.3153062510_cwlr.jpg" class="card-img-top" alt="Octopus">
                     <div class="card-body">
                         <h5 class="card-title">Octopus</h5>
-                        <p class="card-text">An octopus fidget toy to play with.<br>Price: $3</p>
+                        <p class="card-text">A cute octopus fidget toy to play with when bored.<br>Price: $3</p>
                         <p>5 are in stock</p>
                         <a href="home.html" class="btn btn-primary">Order Now</a>
                     </div>
@@ -127,7 +145,7 @@
             <!-- Shark -->
             <div class="col-md-4">
                 <div class="card" style="width: 18rem;">
-                    <img src="your-image-url-here" class="card-img-top" alt="Shark">
+                    <img src="https://cdn.thingiverse.com/assets/ba/d3/63/68/35/large_display_DSC01230_copia.jpg" class="card-img-top" alt="Shark">
                     <div class="card-body">
                         <h5 class="card-title">Shark</h5>
                         <p class="card-text">A shark shaped fidget toy for ocean lovers.<br>Price: $2</p>
@@ -140,7 +158,7 @@
             <!-- The Rocktopus -->
             <div class="col-md-4">
                 <div class="card" style="width: 18rem;">
-                    <img src="your-image-url-here" class="card-img-top" alt="The Rocktopus">
+                    <img src="https://images.cults3d.com/_KFStBj3sYw_icYjm-9-5xaSwiQ=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/27365276/illustration-file/ef91740f-789b-483f-91e6-d8ca248dd828/IMG_3868.jpg" class="card-img-top" alt="The Rocktopus">
                     <div class="card-body">
                         <h5 class="card-title">The Rocktopus</h5>
                         <p class="card-text">The rock and octopus combo fidget toy.<br>Price: $2</p>
@@ -153,7 +171,7 @@
             <!-- Mini Tic Tac Toe -->
             <div class="col-md-4">
                 <div class="card" style="width: 18rem;">
-                    <img src="your-image-url-here" class="card-img-top" alt="Mini Tic Tac Toe">
+                    <img src="https://dl2.myminifactory.com/object-assets/637a79312e367/images/720X720-img-3947.jpg" class="card-img-top" alt="Mini Tic Tac Toe">
                     <div class="card-body">
                         <h5 class="card-title">Mini Tic Tac Toe</h5>
                         <p class="card-text">A small portable Tic Tac Toe game.<br>Price: $4</p>
