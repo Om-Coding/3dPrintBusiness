@@ -1,14 +1,18 @@
 const express = require('express');
 const path = require('path');
 const mysql = require('mysql');
-const session = require('express-session'); // Added session middleware
+const session = require('express-session');
 const stripe = require('stripe')('sk_test_51RBMbMIGrxJSEZdQLRrmTQlo123Qw8JvlyPgUnzaV0gaLFPmD3ssPF5ObvgaPKd8oog79JpPPdt6OpUWdFWSgxAC00t7dxit7R');
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-// Session middleware - add this before other middleware
+// Track database connection status
+let dbConnected = false;
+const orderMemory = new Map(); // In-memory order storage as fallback
+
+// Session middleware
 app.use(session({
-  secret: 'your-secret-key', // Change this to a secure random string
+  secret: 'your-secret-key',
   resave: false,
   saveUninitialized: true,
   cookie: { secure: false } // Set to true if using HTTPS
@@ -24,7 +28,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'order.html'));
 });
 
-// Database connection with improved error handling
+// Database connection
 const connection = mysql.createConnection({
   host: 'sql12.freesqldatabase.com',
   user: 'sql12769758',
@@ -33,20 +37,33 @@ const connection = mysql.createConnection({
   port: 3306
 });
 
-// Better connection handling with retry logic
-function connectWithRetry() {
-  connection.connect(err => {
-    if (err) {
-      console.error('MySQL connection failed:', err);
-      console.log('Retrying in 5 seconds...');
-      setTimeout(connectWithRetry, 5000);
-    } else {
-      console.log('Connected to MySQL');
-    }
-  });
+// Try to connect to database but continue if it fails
+function tryConnectToDatabase() {
+  try {
+    connection.connect(err => {
+      if (err) {
+        console.error('MySQL connection failed:', err);
+        dbConnected = false;
+        console.log('App running in database-less mode');
+      } else {
+        console.log('Connected to MySQL');
+        dbConnected = true;
+      }
+    });
+
+    // Handle connection errors
+    connection.on('error', function(err) {
+      console.error('Database error:', err);
+      dbConnected = false;
+    });
+  } catch (err) {
+    console.error('Failed to create database connection:', err);
+    dbConnected = false;
+  }
 }
 
-connectWithRetry();
+// Try to connect once at startup
+tryConnectToDatabase();
 
 // Price lookup
 function getPrice(printer_model) {
@@ -88,8 +105,8 @@ app.post('/create-checkout-session', async (req, res) => {
         quantity: parseInt(quantity)
       }],
       mode: 'payment',
-      success_url: `http://localhost:${port}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `http://localhost:${port}/cancel`
+      success_url: `${req.protocol}://${req.get('host')}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.protocol}://${req.get('host')}/cancel`
     });
     
     // Store order data in session
@@ -115,7 +132,7 @@ app.get('/cancel', (req, res) => {
   res.send('<h2>Payment cancelled. <a href="/">Try again</a></h2>');
 });
 
-// Success page with DB insert
+// Success page with DB insert (with fallback to memory storage)
 app.get('/success', async (req, res) => {
   const session_id = req.query.session_id;
   
@@ -126,60 +143,95 @@ app.get('/success', async (req, res) => {
   
   try {
     const session = await stripe.checkout.sessions.retrieve(session_id);
-    const customer_email = session.customer_details.email;
+    const customer_email = session.customer_details ? session.customer_details.email : 'unknown';
     const amount_paid = session.amount_total / 100;
     
     // Get data from the session
     const { full_name, email, phone, address, printer_model, quantity } = req.session.orderData;
     
-    const values = [
-      full_name, 
-      email, 
-      phone, 
-      address,
-      printer_model, 
-      quantity, 
-      amount_paid, 
-      session.payment_intent
-    ];
+    // Generate a unique order ID
+    const orderId = Date.now().toString();
     
-    const sql = `
-      INSERT INTO PrinterOrders
-      (full_name, email, phone, address, printer_model, quantity, price, razorpay_payment_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    connection.query(sql, values, (err, result) => {
-      if (err) {
-        console.error('DB insert error:', err);
-        return res.status(500).send('Database error. Your payment was successful, but we could not save your order. Please contact support.');
-      }
+    // Try to save to database if connected
+    if (dbConnected) {
+      const values = [
+        full_name, 
+        email, 
+        phone, 
+        address,
+        printer_model, 
+        quantity, 
+        amount_paid, 
+        session.payment_intent
+      ];
       
-      // Clear session data after successful order
-      req.session.orderData = null;
+      const sql = `
+        INSERT INTO PrinterOrders
+        (full_name, email, phone, address, printer_model, quantity, price, razorpay_payment_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `;
       
-      res.send(`
-        <h2>Payment successful!</h2>
-        <p>Order ID: ${result.insertId}</p>
-        <p>Thank you for your purchase, ${full_name}!</p>
-        <p><a href="/">Return to shop</a></p>
-      `);
-    });
+      connection.query(sql, values, (err, result) => {
+        if (err) {
+          console.error('DB insert error:', err);
+          // Fallback to in-memory storage
+          orderMemory.set(orderId, {
+            full_name,
+            email,
+            phone,
+            address,
+            printer_model,
+            quantity,
+            price: amount_paid,
+            payment_id: session.payment_intent,
+            date: new Date().toISOString()
+          });
+          
+          sendSuccessResponse(res, orderId, full_name);
+        } else {
+          sendSuccessResponse(res, result.insertId, full_name);
+        }
+      });
+    } else {
+      // Store in memory since database is not available
+      orderMemory.set(orderId, {
+        full_name,
+        email,
+        phone,
+        address,
+        printer_model,
+        quantity,
+        price: amount_paid,
+        payment_id: session.payment_intent,
+        date: new Date().toISOString()
+      });
+      
+      sendSuccessResponse(res, orderId, full_name);
+    }
   } catch (err) {
     console.error('Stripe success error:', err);
     res.status(500).send('Payment verification failed. If your payment was successful, please contact support.');
   }
 });
 
-// Error handling for database connection loss
-connection.on('error', function(err) {
-  console.error('Database error:', err);
-  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-    console.log('Database connection lost. Attempting to reconnect...');
-    connectWithRetry();
-  } else {
-    throw err;
-  }
+function sendSuccessResponse(res, orderId, full_name) {
+  // Clear session data after successful order
+  req.session.orderData = null;
+  
+  res.send(`
+    <h2>Payment successful!</h2>
+    <p>Order ID: ${orderId}</p>
+    <p>Thank you for your purchase, ${full_name}!</p>
+    <p><a href="/">Return to shop</a></p>
+  `);
+}
+
+// Status endpoint to check database connection
+app.get('/status', (req, res) => {
+  res.json({
+    database: dbConnected ? 'connected' : 'disconnected',
+    ordersInMemory: orderMemory.size
+  });
 });
 
 app.listen(port, () => {
