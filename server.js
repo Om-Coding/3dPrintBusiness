@@ -3,7 +3,7 @@ const express = require('express');
 const path = require('path');
 const mysql = require('mysql');
 const session = require('express-session');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_51RBMbMIGrxJSEZdQLRrmTQlo123Qw8JvlyPgUnzaV0gaLFPmD3ssPF5ObvgaPKd8oog79JpPPdt6OpUWdFWSgxAC00t7dxit7R');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_51RFdliRbudC4u2a28Ob9XzJ5VyA3wkZlmNoUuGyVG5KXZcO5PLBrkA6D1jv2lzBByLDHBqN10xnZtJX9in5uBW9700g9Nu5lwn');
 const app = express();
 const port = process.env.PORT || 3000;
 
