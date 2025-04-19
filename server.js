@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const path = require('path');
 const mysql = require('mysql');
@@ -10,7 +11,7 @@ const port = process.env.PORT || 3000;
 let dbConnected = false;
 const orderMemory = new Map(); // In-memory order storage as fallback
 
-// Session middleware
+// Session middleware - CRITICAL for storing order data between requests
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
@@ -30,8 +31,8 @@ app.get('/', (req, res) => {
 
 // Database connection
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
+  host: process.env.DB_HOST || 'sql12.freesqldatabase.com',
+  user: process.env.DB_USER || 'sql12769758',
   password: process.env.DB_PASSWORD || 'YfrYsG8BpA',
   database: process.env.DB_NAME || 'sql12769758',
   port: process.env.DB_PORT || 3306
@@ -53,81 +54,19 @@ const createTableQuery = `
   )
 `;
 
-// Try to connect to database but continue if it fails
-function tryConnectToDatabase() {
-  let connection;
-  try {
-    connection = mysql.createConnection(dbConfig);
-    
-    connection.connect(err => {
-      if (err) {
-        console.error('MySQL connection failed:', err);
-        dbConnected = false;
-        console.log('App running in database-less mode');
-        
-        // Try with a different connection method if it's a specific error
-        if (err.code === 'ER_ACCESS_DENIED_ERROR') {
-          tryLocalDatabase();
-        }
-      } else {
-        console.log('Connected to MySQL');
-        dbConnected = true;
-        
-        // Create table if it doesn't exist
-        connection.query(createTableQuery, (err) => {
-          if (err) {
-            console.error('Error creating table:', err);
-          } else {
-            console.log('Table checked/created successfully');
-          }
-        });
-      }
-    });
-
-    // Handle connection errors
-    connection.on('error', function(err) {
-      console.error('Database error:', err);
-      
-      // Don't set dbConnected to false here - only if reconnect fails
-      if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-        console.log('Database connection lost. Attempting to reconnect...');
-        setTimeout(tryConnectToDatabase, 5000); // Try to reconnect in 5 seconds
-      } else {
-        dbConnected = false;
-      }
-    });
-    
-    // Return the connection
-    return connection;
-  } catch (err) {
-    console.error('Failed to create database connection:', err);
-    dbConnected = false;
-    return null;
-  }
-}
-
-// Fallback to local database if remote fails
-function tryLocalDatabase() {
-  const localConfig = {
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'novalayer',
-    port: 3306
-  };
+// Try to connect to database
+let connection;
+try {
+  connection = mysql.createConnection(dbConfig);
   
-  console.log('Trying local database connection...');
-  
-  const localConnection = mysql.createConnection(localConfig);
-  
-  localConnection.connect(err => {
+  connection.connect(err => {
     if (err) {
-      console.error('Local MySQL connection also failed:', err);
+      console.error('MySQL connection failed:', err);
       dbConnected = false;
+      console.log('App running in database-less mode');
     } else {
-      console.log('Connected to local MySQL');
+      console.log('Connected to MySQL database');
       dbConnected = true;
-      connection = localConnection;
       
       // Create table if it doesn't exist
       connection.query(createTableQuery, (err) => {
@@ -139,10 +78,38 @@ function tryLocalDatabase() {
       });
     }
   });
-}
 
-// Try to connect once at startup
-const connection = tryConnectToDatabase();
+  // Handle connection errors
+  connection.on('error', function(err) {
+    console.error('Database error:', err);
+    
+    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+      console.log('Database connection lost. Attempting to reconnect...');
+      setTimeout(() => {
+        try {
+          connection = mysql.createConnection(dbConfig);
+          connection.connect(err => {
+            if (!err) {
+              dbConnected = true;
+              console.log('Reconnected to MySQL database');
+            } else {
+              dbConnected = false;
+              console.log('Failed to reconnect to database');
+            }
+          });
+        } catch (error) {
+          console.error('Reconnection attempt failed:', error);
+          dbConnected = false;
+        }
+      }, 5000); // Try to reconnect in 5 seconds
+    } else {
+      dbConnected = false;
+    }
+  });
+} catch (err) {
+  console.error('Failed to create database connection:', err);
+  dbConnected = false;
+}
 
 // Price lookup
 function getPrice(printer_model) {
@@ -295,7 +262,7 @@ app.get('/success', async (req, res) => {
     // Get data from the session
     const { full_name, email, phone, address, printer_model, quantity } = req.session.orderData;
     
-    // Generate a unique order ID
+    // Generate a unique order ID for fallback
     const orderId = Date.now().toString();
     
     // Try to save to database if connected
