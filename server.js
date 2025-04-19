@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const mysql = require('mysql');
 const session = require('express-session');
-const stripe = require('stripe')('sk_test_51RBMbMIGrxJSEZdQLRrmTQlo123Qw8JvlyPgUnzaV0gaLFPmD3ssPF5ObvgaPKd8oog79JpPPdt6OpUWdFWSgxAC00t7dxit7R');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_51RBMbMIGrxJSEZdQLRrmTQlo123Qw8JvlyPgUnzaV0gaLFPmD3ssPF5ObvgaPKd8oog79JpPPdt6OpUWdFWSgxAC00t7dxit7R');
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -12,7 +12,7 @@ const orderMemory = new Map(); // In-memory order storage as fallback
 
 // Session middleware
 app.use(session({
-  secret: 'your-secret-key',
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: true,
   cookie: { secure: false } // Set to true if using HTTPS
@@ -29,41 +29,120 @@ app.get('/', (req, res) => {
 });
 
 // Database connection
-const connection = mysql.createConnection({
-  host: 'sql12.freesqldatabase.com',
-  user: 'sql12769758',
-  password: 'YfrYsG8BpA',
-  database: 'sql12769758',
-  port: 3306
-});
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'novalayer',
+  port: process.env.DB_PORT || 3306
+};
+
+// Create table if it doesn't exist
+const createTableQuery = `
+  CREATE TABLE IF NOT EXISTS PrinterOrders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    address TEXT NOT NULL,
+    printer_model VARCHAR(100) NOT NULL,
+    quantity INT NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    razorpay_payment_id VARCHAR(255),
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`;
 
 // Try to connect to database but continue if it fails
 function tryConnectToDatabase() {
+  let connection;
   try {
+    connection = mysql.createConnection(dbConfig);
+    
     connection.connect(err => {
       if (err) {
         console.error('MySQL connection failed:', err);
         dbConnected = false;
         console.log('App running in database-less mode');
+        
+        // Try with a different connection method if it's a specific error
+        if (err.code === 'ER_ACCESS_DENIED_ERROR') {
+          tryLocalDatabase();
+        }
       } else {
         console.log('Connected to MySQL');
         dbConnected = true;
+        
+        // Create table if it doesn't exist
+        connection.query(createTableQuery, (err) => {
+          if (err) {
+            console.error('Error creating table:', err);
+          } else {
+            console.log('Table checked/created successfully');
+          }
+        });
       }
     });
 
     // Handle connection errors
     connection.on('error', function(err) {
       console.error('Database error:', err);
-      dbConnected = false;
+      
+      // Don't set dbConnected to false here - only if reconnect fails
+      if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+        console.log('Database connection lost. Attempting to reconnect...');
+        setTimeout(tryConnectToDatabase, 5000); // Try to reconnect in 5 seconds
+      } else {
+        dbConnected = false;
+      }
     });
+    
+    // Return the connection
+    return connection;
   } catch (err) {
     console.error('Failed to create database connection:', err);
     dbConnected = false;
+    return null;
   }
 }
 
+// Fallback to local database if remote fails
+function tryLocalDatabase() {
+  const localConfig = {
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'novalayer',
+    port: 3306
+  };
+  
+  console.log('Trying local database connection...');
+  
+  const localConnection = mysql.createConnection(localConfig);
+  
+  localConnection.connect(err => {
+    if (err) {
+      console.error('Local MySQL connection also failed:', err);
+      dbConnected = false;
+    } else {
+      console.log('Connected to local MySQL');
+      dbConnected = true;
+      connection = localConnection;
+      
+      // Create table if it doesn't exist
+      connection.query(createTableQuery, (err) => {
+        if (err) {
+          console.error('Error creating table:', err);
+        } else {
+          console.log('Table checked/created successfully');
+        }
+      });
+    }
+  });
+}
+
 // Try to connect once at startup
-tryConnectToDatabase();
+const connection = tryConnectToDatabase();
 
 // Price lookup
 function getPrice(printer_model) {
@@ -127,6 +206,73 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 });
 
+// Handle "Pay with cash" option separately
+app.post('/process-cash-order', (req, res) => {
+  const { full_name, email, phone, address, printer_model, quantity } = req.body;
+  const price = getPrice(printer_model);
+  const total = price * parseInt(quantity);
+  
+  // Generate a unique order ID
+  const orderId = Date.now().toString();
+  
+  // Store the order (either in DB or memory)
+  if (dbConnected && connection) {
+    const values = [
+      full_name, 
+      email, 
+      phone, 
+      address,
+      printer_model, 
+      quantity, 
+      total, 
+      'CASH-PAYMENT'
+    ];
+    
+    const sql = `
+      INSERT INTO PrinterOrders
+      (full_name, email, phone, address, printer_model, quantity, price, razorpay_payment_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    connection.query(sql, values, (err, result) => {
+      if (err) {
+        console.error('DB insert error:', err);
+        // Fallback to in-memory storage
+        orderMemory.set(orderId, {
+          full_name,
+          email,
+          phone,
+          address,
+          printer_model,
+          quantity,
+          price: total,
+          payment_id: 'CASH-PAYMENT',
+          date: new Date().toISOString()
+        });
+        
+        res.json({ success: true, orderId: orderId });
+      } else {
+        res.json({ success: true, orderId: result.insertId });
+      }
+    });
+  } else {
+    // Store in memory since database is not available
+    orderMemory.set(orderId, {
+      full_name,
+      email,
+      phone,
+      address,
+      printer_model,
+      quantity,
+      price: total,
+      payment_id: 'CASH-PAYMENT',
+      date: new Date().toISOString()
+    });
+    
+    res.json({ success: true, orderId: orderId });
+  }
+});
+
 // Cancel page
 app.get('/cancel', (req, res) => {
   res.send('<h2>Payment cancelled. <a href="/">Try again</a></h2>');
@@ -153,7 +299,7 @@ app.get('/success', async (req, res) => {
     const orderId = Date.now().toString();
     
     // Try to save to database if connected
-    if (dbConnected) {
+    if (dbConnected && connection) {
       const values = [
         full_name, 
         email, 
@@ -215,9 +361,6 @@ app.get('/success', async (req, res) => {
 });
 
 function sendSuccessResponse(res, orderId, full_name) {
-  // Clear session data after successful order
-  req.session.orderData = null;
-  
   res.send(`
     <h2>Payment successful!</h2>
     <p>Order ID: ${orderId}</p>
@@ -226,12 +369,36 @@ function sendSuccessResponse(res, orderId, full_name) {
   `);
 }
 
+// Retrieve orders - admin only route
+app.get('/admin/orders', (req, res) => {
+  if (dbConnected && connection) {
+    const sql = 'SELECT * FROM PrinterOrders ORDER BY order_date DESC';
+    
+    connection.query(sql, (err, results) => {
+      if (err) {
+        console.error('DB query error:', err);
+        res.json({ orders: Array.from(orderMemory.values()) });
+      } else {
+        res.json({ orders: results });
+      }
+    });
+  } else {
+    // Return in-memory orders
+    res.json({ orders: Array.from(orderMemory.values()) });
+  }
+});
+
 // Status endpoint to check database connection
 app.get('/status', (req, res) => {
   res.json({
     database: dbConnected ? 'connected' : 'disconnected',
     ordersInMemory: orderMemory.size
   });
+});
+
+// Healthcheck endpoint
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
 });
 
 app.listen(port, () => {
