@@ -32,8 +32,8 @@ app.get('/', (req, res) => {
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'novalayer',
+  password: process.env.DB_PASSWORD || 'YfrYsG8BpA',
+  database: process.env.DB_NAME || 'sql12769758',
   port: process.env.DB_PORT || 3306
 };
 
