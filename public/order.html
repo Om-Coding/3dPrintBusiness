@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
- <link rel="stylesheet" href="images/logo.png">  <title>Novalayer</title>
+  <link rel="stylesheet" href="images/logo.png">  
+  <title>Novalayer</title>
   <style>
     body {
       background-color: #212529;
@@ -70,6 +71,19 @@
     form button:hover {
       background-color: #e0a800;
     }
+    .price-display {
+      font-size: 1.5rem;
+      margin-top: 15px;
+      text-align: right;
+    }
+    #order-success {
+      background-color: #28a745;
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -120,7 +134,7 @@
       <textarea name="address" class="form-control" required></textarea>
 
       <label>Printer Model:</label>
-      <select name="printer_model" class="form-control" required>
+      <select name="printer_model" id="printer_model" class="form-control" required>
         <option>Hexagon Fidget</option>
         <option>Cone Fidget</option>
         <option>Fidget Ring</option>
@@ -139,21 +153,76 @@
       </select>
 
       <label>Quantity:</label>
-      <input type="number" name="quantity" class="form-control" required />
+      <input type="number" name="quantity" id="quantity" min="1" value="1" class="form-control" required />
 
-      <button type="submit" class="btn btn-warning mt-3">Pay with Stripe</button>
-      <button type="submit" class="btn btn-primary mt-3">Pay with cash</button>
+      <div class="price-display">
+        Total: $<span id="total-price">2.00</span>
+      </div>
+
+      <div class="d-flex justify-content-between mt-3">
+        <button type="button" id="btnPayStripe" class="btn btn-warning">Pay with Stripe</button>
+        <button type="button" id="btnPayCash" class="btn btn-primary">Pay with Cash</button>
+      </div>
     </form>
+
+    <div id="order-success" class="text-center">
+      <h3>Order Placed Successfully!</h3>
+      <p>Your order ID: <span id="order-id"></span></p>
+      <p>Thank you for your purchase!</p>
+      <button class="btn btn-light mt-3" onclick="window.location.reload()">Place Another Order</button>
+    </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script src="https://js.stripe.com/v3/"></script>
   <script>
-    const stripe = Stripe('pk_test_51RBMbMIGrxJSEZdQcR7JKewdSJMP8HywSJBfS7A5SHnK2u8cSBtyhX8Z7odkuZR7ozOrsIU3vMmtZdosz1LUmD2800eXDEc0Va'); // Replace this
+    // Initialize Stripe
+    const stripe = Stripe('pk_test_51RBMbMIGrxJSEZdQcR7JKewdSJMP8HywSJBfS7A5SHnK2u8cSBtyhX8Z7odkuZR7ozOrsIU3vMmtZdosz1LUmD2800eXDEc0Va');
 
-    document.getElementById("orderForm").addEventListener("submit", async function (e) {
-      e.preventDefault();
-      const form = e.target;
+    // Price lookup
+    const prices = {
+      "Hexagon Fidget": 2,
+      "Cone Fidget": 2,
+      "Fidget Ring": 1,
+      "Big Hexagon Fidget": 3,
+      "Infinity Cube": 3,
+      "Dragon": 4,
+      "Sword": 9,
+      "Octopus": 3,
+      "Shark": 2,
+      "The Rocktopus": 2,
+      "Mini Tic Tac Toe": 4,
+      "Reed Case": 3,
+      "Small Container": 2,
+      "Big Container": 3,
+      "Among Us": 2 
+    };
 
+    // Update price display when model or quantity changes
+    function updatePrice() {
+      const model = document.getElementById('printer_model').value;
+      const quantity = parseInt(document.getElementById('quantity').value) || 1;
+      const price = prices[model] || 0;
+      const total = price * quantity;
+      
+      document.getElementById('total-price').textContent = total.toFixed(2);
+    }
+
+    document.getElementById('printer_model').addEventListener('change', updatePrice);
+    document.getElementById('quantity').addEventListener('input', updatePrice);
+
+    // Initialize price display
+    updatePrice();
+
+    // Handle stripe payment
+    document.getElementById("btnPayStripe").addEventListener("click", async function() {
+      const form = document.getElementById('orderForm');
+      
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      
       const formData = {
         full_name: form.full_name.value,
         email: form.email.value,
@@ -163,17 +232,61 @@
         quantity: parseInt(form.quantity.value)
       };
 
-      const res = await fetch('/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      try {
+        const res = await fetch('/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
 
-      const data = await res.json();
-      if (data.id) {
-        stripe.redirectToCheckout({ sessionId: data.id });
-      } else {
-        alert('Failed to create Stripe session.');
+        const data = await res.json();
+        if (data.id) {
+          stripe.redirectToCheckout({ sessionId: data.id });
+        } else {
+          alert('Failed to create Stripe session. Please try again.');
+        }
+      } catch (err) {
+        console.error('Payment error:', err);
+        alert('Payment error. Please try again later.');
+      }
+    });
+
+    // Handle cash payment
+    document.getElementById("btnPayCash").addEventListener("click", async function() {
+      const form = document.getElementById('orderForm');
+      
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      
+      const formData = {
+        full_name: form.full_name.value,
+        email: form.email.value,
+        phone: form.phone.value,
+        address: form.address.value,
+        printer_model: form.printer_model.value,
+        quantity: parseInt(form.quantity.value)
+      };
+
+      try {
+        const res = await fetch('/process-cash-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('order-id').textContent = data.orderId;
+          document.getElementById('orderForm').style.display = 'none';
+          document.getElementById('order-success').style.display = 'block';
+        } else {
+          alert('Failed to process order. Please try again.');
+        }
+      } catch (err) {
+        console.error('Order error:', err);
+        alert('Order processing error. Please try again later.');
       }
     });
   </script>
